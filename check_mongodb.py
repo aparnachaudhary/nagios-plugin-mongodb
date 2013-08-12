@@ -132,7 +132,7 @@ def main(argv):
     p.add_option('-A', '--action', action='store', type='choice', dest='action', default='connect', help='The action you want to take',
                  choices=['connect', 'connections', 'replication_lag', 'replication_lag_percent', 'replset_state', 'memory', 'memory_mapped', 'lock',
                           'flushing', 'last_flush_time', 'index_miss_ratio', 'databases', 'collections', 'database_size', 'database_indexes', 'collection_indexes',
-                          'queues', 'oplog', 'journal_commits_in_wl', 'write_data_files', 'journaled', 'opcounters', 'current_lock', 'replica_primary', 'page_faults',
+                          'collection_doc_count', 'queues', 'oplog', 'journal_commits_in_wl', 'write_data_files', 'journaled', 'opcounters', 'current_lock', 'replica_primary', 'page_faults',
                           'asserts', 'queries_per_second', 'page_faults', 'chunks_balance', 'connect_primary', 'collection_state', 'row_count'])
     p.add_option('--max-lag', action='store_true', dest='max_lag', default=False, help='Get max replication lag (for replication_lag action only)')
     p.add_option('--mapped-memory', action='store_true', dest='mapped_memory', default=False, help='Get mapped memory instead of resident (if resident memory can not be read)')
@@ -224,6 +224,8 @@ def main(argv):
         return check_database_indexes(con, database, warning, critical, perf_data)
     elif action == "collection_indexes":
         return check_collection_indexes(con, database, collection, warning, critical, perf_data)
+    elif action == "collection_doc_count":
+        return check_collection_doc_count(con, database, collection, warning, critical, perf_data)
     elif action == "journaled":
         return check_journaled(con, warning, critical, perf_data)
     elif action == "write_data_files":
@@ -841,6 +843,25 @@ def check_collection_indexes(con, database, collection, warning, critical, perf_
         else:
             print "OK - %s.%s totalIndexSize: %.0f MB %s" % (database, collection, total_index_size, perfdata)
             return 0
+    except Exception, e:
+        return exit_with_general_critical(e)
+
+def check_collection_doc_count(con, database, collection, warning, critical, perf_data):
+    #
+    # TODO: Update these thresholds based on the application requirements
+    #
+    warning = warning or 100
+    critical = critical or 1000000
+    try:
+        set_read_preference(con.admin)
+        data = con[database].command('collstats', collection)
+        total_doc_count = data['count']
+        
+        message = "Collection %s document count %i seconds" % (collection, total_doc_count)
+        message += performance_data(perf_data, [(total_doc_count, "collection_doc_count", warning, critical)])
+    
+        return check_levels(total_doc_count, warning, critical, message)
+    
     except Exception, e:
         return exit_with_general_critical(e)
 
