@@ -262,6 +262,17 @@ define service {
 }
 </code></pre>
 
+#### Check total documents in a collection
+This will check the count of total documents in a collection.
+Replace your-database with the name of your database and your-collection with the name of your collection
+<pre><code>
+define service {
+      use                     generic-service
+      hostgroup_name          Mongo Servers
+      service_description     MongoDB Database document count your-database your-collection
+      check_command           check_mongodb_collection!collection_doc_count!27017!50!100!your-database!your-collection
+}
+</code></pre>
 
 
 #### Check the primary server of replicaset
